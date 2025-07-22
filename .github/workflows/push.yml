@@ -111,18 +111,10 @@ jobs:
         run: |
           echo "=== Validate cog.yaml ==="
           cog validate || echo "Validation failed"
-          
-      - name: Authenticate Docker to Replicate registry
-        env:
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
-        run: |
-          echo "=== Setting up Docker authentication ==="
-          # Use the API token as the password, with your username
-          echo "$REPLICATE_API_TOKEN" | docker login r8.im -u student0129 --password-stdin
       
       - name: Push to Replicate
         env:
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_CLI_TOKEN }}
         run: |
           echo "=== Attempting push ==="
           echo "Token is set: ${REPLICATE_API_TOKEN:+yes}"
