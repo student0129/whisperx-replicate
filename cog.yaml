@@ -11,7 +11,11 @@ build:
     - "torchvision==0.16.2"
     - "numpy<2.0"
     - "pydub"
-    - "whisperx"
+    # --- Start of Changes ---
+    - "whisperx==3.1.1"              # Pin whisperx to a known stable version
+    - "faster-whisper==0.9.0"         # Pin its backend for compatibility
+    - "ctranslate2==3.20.1"         # Pin the model loader for stability
+    # --- End of Changes ---
   run:
-    - "pip install pyannote.audio==3.1.1"
+    - "pip install pyannote.audio==3.1.1"  # Your custom install step is unchanged
 predict: "predict.py:Predictor"
