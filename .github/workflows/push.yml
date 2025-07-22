@@ -7,8 +7,7 @@ on:
 
 jobs:
   push_model:
-    # This is the only line we are changing
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
@@ -18,6 +17,7 @@ jobs:
         uses: replicate/setup-cog@v1
         with:
           token: ${{ secrets.REPLICATE_API_TOKEN }}
+          cog-version: "0.9.10"
 
       - name: Push to Replicate
         run: |
