@@ -1,0 +1,22 @@
+# .github/workflows/push.yml
+name: Push to Replicate
+
+on:
+  push:
+    branches:
+      - main # Or whatever your default branch is called
+
+jobs:
+  push_model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Push to Replicate
+        uses: replicate/cog-github-action@main
+        with:
+          # Your Replicate model name
+          destination: student0129/whisperx-app-from-github
+          # A Replicate API token, stored as a secret
+          token: ${{ secrets.REPLICATE_API_TOKEN }}
