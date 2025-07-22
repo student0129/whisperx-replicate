@@ -118,8 +118,7 @@ with open('cog.yaml', 'r') as f:
     if 'run' in data['build']:
         print('  Run commands:')
         for cmd in data['build']['run']:
-            print(f'    - {cmd}')
-          "
+            print(f'    - {cmd}')"
           
       - name: Validate Cog configuration
         run: |
