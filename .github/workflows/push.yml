@@ -1,24 +1,118 @@
 name: Push to Replicate
-
 on:
   push:
     branches:
       - main
-
 jobs:
   push_model:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-latest  # This will use the latest Ubuntu (currently 24.04)
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Cog
-        uses: replicate/setup-cog@v1
-        with:
-          token: ${{ secrets.REPLICATE_API_TOKEN }}
-          cog-version: "0.9.10"
-
-      - name: Push to Replicate
+        
+      - name: Debug environment before installation
         run: |
-          cog push r8.im/student0129/whisperx-app-from-github
+          echo "=== System Information ==="
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Runner Arch: ${{ runner.arch }}"
+          uname -a
+          lsb_release -a || echo "lsb_release not available"
+          echo "Current PATH: $PATH"
+          echo "Current directory: $(pwd)"
+          echo "=== Repository files ==="
+          ls -la
+          echo "=== Check for existing Cog ==="
+          which cog || echo "Cog not found in PATH"
+          
+      - name: Get latest Cog version
+        id: cog-version
+        run: |
+          # Fetch the latest release version from GitHub API
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/replicate/cog/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//')
+          echo "Latest Cog version: $LATEST_VERSION"
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Install Cog manually with debugging
+        run: |
+          echo "=== Downloading Cog ==="
+          COG_VERSION="${{ steps.cog-version.outputs.version }}"
+          echo "Installing Cog version: $COG_VERSION"
+          
+          # Determine architecture
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            ARCH_STRING="Linux_x86_64"
+          elif [ "$ARCH" = "aarch64" ]; then
+            ARCH_STRING="Linux_arm64"
+          else
+            echo "Unsupported architecture: $ARCH"
+            exit 1
+          fi
+          
+          DOWNLOAD_URL="https://github.com/replicate/cog/releases/download/v${COG_VERSION}/cog_${ARCH_STRING}.tar.gz"
+          echo "Download URL: $DOWNLOAD_URL"
+          
+          # Download with verbose output
+          curl -L -v -o cog.tar.gz "$DOWNLOAD_URL"
+          
+          echo "=== Verify download ==="
+          ls -la cog.tar.gz
+          file cog.tar.gz
+          
+          echo "=== Extract Cog ==="
+          tar -tzf cog.tar.gz || echo "Failed to list tar contents"
+          sudo tar -xzvf cog.tar.gz -C /usr/local/bin
+          
+          echo "=== Set permissions ==="
+          sudo chmod +x /usr/local/bin/cog
+          ls -la /usr/local/bin/cog
+          
+          echo "=== Verify installation ==="
+          /usr/local/bin/cog --version || echo "Direct execution failed"
+          export PATH="/usr/local/bin:$PATH"
+          which cog || echo "Cog still not in PATH"
+          cog --version || echo "Cog version check failed"
+          
+      - name: Debug environment after installation
+        run: |
+          echo "=== Post-installation check ==="
+          echo "PATH: $PATH"
+          echo "Cog location: $(which cog || echo 'not found')"
+          echo "Cog version: $(cog --version || echo 'version check failed')"
+          echo "=== Docker check ==="
+          docker --version || echo "Docker not found"
+          docker info || echo "Docker info failed"
+          
+      - name: Login to Replicate with debugging
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+        run: |
+          echo "=== Attempting login ==="
+          echo "Token length: ${#REPLICATE_API_TOKEN}"
+          echo "Token starts with: ${REPLICATE_API_TOKEN:0:8}..."
+          echo "$REPLICATE_API_TOKEN" | cog login --token-stdin || {
+            echo "Login failed, trying alternative method"
+            cog login --token "$REPLICATE_API_TOKEN"
+          }
+          
+      - name: Validate Cog configuration
+        run: |
+          echo "=== Validate cog.yaml ==="
+          cat cog.yaml
+          echo "=== Validate predict.py ==="
+          head -20 predict.py
+          echo "=== Test Cog build (dry run) ==="
+          cog build --help || echo "Cog build help failed"
+          
+      - name: Push to Replicate with debugging
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+        run: |
+          echo "=== Attempting push ==="
+          cog push r8.im/student0129/whisperx-app-from-github || {
+            echo "=== Push failed, checking logs ==="
+            echo "Docker images:"
+            docker images
+            echo "Docker processes:"
+            docker ps -a
+          }
