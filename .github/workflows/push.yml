@@ -47,45 +47,37 @@ jobs:
           echo "Download URL: $DOWNLOAD_URL"
           echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
           
-      - name: Install Cog manually with debugging
+      - name: Install Cog
         run: |
           echo "=== Downloading Cog ==="
           DOWNLOAD_URL="${{ steps.cog-info.outputs.download_url }}"
           
           if [ -z "$DOWNLOAD_URL" ]; then
             echo "ERROR: Could not find download URL"
-            echo "=== Trying alternative download method ==="
-            # Fallback to a known working version
-            COG_VERSION="0.8.6"
-            DOWNLOAD_URL="https://github.com/replicate/cog/releases/download/v${COG_VERSION}/cog_Linux_x86_64.tar.gz"
-            echo "Using fallback version: $COG_VERSION"
-            echo "Fallback URL: $DOWNLOAD_URL"
-          fi
-          
-          # Download with follow redirects and show headers
-          curl -L -H "Accept: application/octet-stream" -o cog.tar.gz "$DOWNLOAD_URL" -v
-          
-          echo "=== Verify download ==="
-          ls -la cog.tar.gz
-          file cog.tar.gz
-          
-          # Check if it's actually a tar.gz file
-          if file cog.tar.gz | grep -q "gzip compressed"; then
-            echo "File is a valid gzip archive"
+            echo "=== Using direct download method ==="
+            sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
           else
-            echo "ERROR: Downloaded file is not a gzip archive"
-            echo "File contents (first 100 chars):"
-            head -c 100 cog.tar.gz
-            echo ""
-            exit 1
+            # Download the file
+            curl -L -H "Accept: application/octet-stream" -o cog_download "$DOWNLOAD_URL"
+            
+            echo "=== Verify download ==="
+            ls -la cog_download
+            file cog_download
+            
+            # Check if it's a binary or archive
+            if file cog_download | grep -q "ELF.*executable"; then
+              echo "Downloaded file is a binary executable"
+              sudo mv cog_download /usr/local/bin/cog
+            elif file cog_download | grep -q "gzip compressed"; then
+              echo "Downloaded file is a gzip archive"
+              tar -xzvf cog_download -C /tmp/
+              find /tmp -name "cog" -type f -executable | head -1 | xargs -I {} sudo mv {} /usr/local/bin/cog
+            else
+              echo "ERROR: Unknown file type"
+              echo "Trying direct binary download..."
+              sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_Linux_x86_64"
+            fi
           fi
-          
-          echo "=== Extract Cog ==="
-          tar -xzvf cog.tar.gz -C /tmp/
-          ls -la /tmp/
-          
-          # Find and move the cog binary
-          find /tmp -name "cog" -type f -executable | head -1 | xargs -I {} sudo mv {} /usr/local/bin/cog
           
           echo "=== Set permissions ==="
           sudo chmod +x /usr/local/bin/cog
@@ -93,19 +85,6 @@ jobs:
           
           echo "=== Verify installation ==="
           /usr/local/bin/cog --version
-          
-      - name: Alternative installation method (if previous fails)
-        if: failure()
-        run: |
-          echo "=== Trying alternative installation via install script ==="
-          sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
-          sudo chmod +x /usr/local/bin/cog
-          cog --version || {
-            echo "=== That failed too, trying pip install ==="
-            pip install cog
-            which cog
-            cog --version
-          }
           
       - name: Debug environment after installation
         run: |
@@ -123,7 +102,19 @@ jobs:
         run: |
           echo "=== Attempting login ==="
           echo "Token length: ${#REPLICATE_API_TOKEN}"
+          if [ -z "$REPLICATE_API_TOKEN" ]; then
+            echo "ERROR: REPLICATE_API_TOKEN is empty!"
+            exit 1
+          fi
           cog login --token "$REPLICATE_API_TOKEN"
+          
+      - name: Validate Cog configuration
+        run: |
+          echo "=== Validate cog.yaml ==="
+          cat cog.yaml
+          echo ""
+          echo "=== Check if cog.yaml is valid ==="
+          cog validate || echo "Validation failed"
           
       - name: Push to Replicate
         env:
