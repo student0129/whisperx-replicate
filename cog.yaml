@@ -7,5 +7,11 @@ build:
     - "libsndfile1"
     - "git"
   python_packages:
-    - "requirements.txt"
+    - "torch==2.1.2"
+    - "torchaudio==2.1.2"
+    - "torchvision==0.16.2"
+    - "numpy<2.0"
+    - "pyannote.audio==3.1.1"
+    - "pydub"
+    - "whisperx"
 predict: "predict.py:Predictor"
