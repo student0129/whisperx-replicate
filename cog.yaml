@@ -1,0 +1,16 @@
+# cog.yaml
+build:
+  gpu: true
+  python_version: "3.9"
+  system_packages:
+    - "ffmpeg"
+    - "libsndfile1"
+  python_packages:
+    - "torch==2.1.2"
+    - "torchaudio==2.1.2"
+    - "torchvision==0.16.2"
+    - "git+https://github.com/m-bain/whisperx.git"
+    - "pydub"
+    - "pyannote.audio==3.1.1"
+
+predict: "predict.py:Predictor"
