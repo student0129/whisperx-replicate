@@ -96,19 +96,6 @@ jobs:
           docker --version
           docker info
           
-      - name: Login to Replicate
-        env:
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
-        run: |
-          echo "=== Attempting login ==="
-          echo "Token length: ${#REPLICATE_API_TOKEN}"
-          if [ -z "$REPLICATE_API_TOKEN" ]; then
-            echo "ERROR: REPLICATE_API_TOKEN is empty!"
-            exit 1
-          fi
-          # Use --token-stdin flag and pipe the token
-          echo "$REPLICATE_API_TOKEN" | cog login --token-stdin
-          
       - name: Validate Cog configuration
         run: |
           echo "=== Validate cog.yaml ==="
@@ -122,4 +109,10 @@ jobs:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
           echo "=== Attempting push ==="
+          echo "Token is set: ${REPLICATE_API_TOKEN:+yes}"
+          echo "Token length: ${#REPLICATE_API_TOKEN}"
+          if [ -z "$REPLICATE_API_TOKEN" ]; then
+            echo "ERROR: REPLICATE_API_TOKEN is empty!"
+            exit 1
+          fi
           cog push r8.im/student0129/whisperx-app-from-github
