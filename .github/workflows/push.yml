@@ -96,12 +96,34 @@ jobs:
           docker --version
           docker info
           
+      - name: Debug cog.yaml content
+        run: |
+          echo "=== Raw cog.yaml content ==="
+          cat cog.yaml
+          echo ""
+          echo "=== Check for hidden characters ==="
+          cat -A cog.yaml
+          echo ""
+          echo "=== Parse YAML with Python ==="
+          python3 -c "
+import yaml
+with open('cog.yaml', 'r') as f:
+    data = yaml.safe_load(f)
+    print('Build configuration:')
+    print(f'  GPU: {data[\"build\"][\"gpu\"]}')
+    print(f'  Python version: {data[\"build\"][\"python_version\"]}')
+    print('  Python packages:')
+    for pkg in data['build'].get('python_packages', []):
+        print(f'    - \"{pkg}\" (length: {len(pkg)}, type: {type(pkg).__name__})')
+    if 'run' in data['build']:
+        print('  Run commands:')
+        for cmd in data['build']['run']:
+            print(f'    - {cmd}')
+          "
+          
       - name: Validate Cog configuration
         run: |
           echo "=== Validate cog.yaml ==="
-          cat cog.yaml
-          echo ""
-          echo "=== Check if cog.yaml is valid ==="
           cog validate || echo "Validation failed"
           
       - name: Push to Replicate
