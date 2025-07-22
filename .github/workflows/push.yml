@@ -5,7 +5,7 @@ on:
       - main
 jobs:
   push_model:
-    runs-on: ubuntu-latest  # This will use the latest Ubuntu (currently 24.04)
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -21,57 +21,91 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "=== Repository files ==="
           ls -la
-          echo "=== Check for existing Cog ==="
-          which cog || echo "Cog not found in PATH"
           
-      - name: Get latest Cog version
-        id: cog-version
+      - name: Get latest Cog version and download URL
+        id: cog-info
         run: |
-          # Fetch the latest release version from GitHub API
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/replicate/cog/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | sed 's/^v//')
+          # Fetch the latest release info from GitHub API
+          echo "=== Fetching latest release info ==="
+          curl -s https://api.github.com/repos/replicate/cog/releases/latest > latest_release.json
+          
+          # Show what we got
+          echo "=== Release info ==="
+          cat latest_release.json | jq -r '.tag_name, .name'
+          
+          # Extract version
+          LATEST_VERSION=$(cat latest_release.json | jq -r '.tag_name' | sed 's/^v//')
           echo "Latest Cog version: $LATEST_VERSION"
           echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+          # List all assets
+          echo "=== Available assets ==="
+          cat latest_release.json | jq -r '.assets[].name'
+          
+          # Find the correct asset URL for Linux x86_64
+          DOWNLOAD_URL=$(cat latest_release.json | jq -r '.assets[] | select(.name | contains("Linux_x86_64")) | .browser_download_url')
+          echo "Download URL: $DOWNLOAD_URL"
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
           
       - name: Install Cog manually with debugging
         run: |
           echo "=== Downloading Cog ==="
-          COG_VERSION="${{ steps.cog-version.outputs.version }}"
-          echo "Installing Cog version: $COG_VERSION"
+          DOWNLOAD_URL="${{ steps.cog-info.outputs.download_url }}"
           
-          # Determine architecture
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then
-            ARCH_STRING="Linux_x86_64"
-          elif [ "$ARCH" = "aarch64" ]; then
-            ARCH_STRING="Linux_arm64"
-          else
-            echo "Unsupported architecture: $ARCH"
-            exit 1
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "ERROR: Could not find download URL"
+            echo "=== Trying alternative download method ==="
+            # Fallback to a known working version
+            COG_VERSION="0.8.6"
+            DOWNLOAD_URL="https://github.com/replicate/cog/releases/download/v${COG_VERSION}/cog_Linux_x86_64.tar.gz"
+            echo "Using fallback version: $COG_VERSION"
+            echo "Fallback URL: $DOWNLOAD_URL"
           fi
           
-          DOWNLOAD_URL="https://github.com/replicate/cog/releases/download/v${COG_VERSION}/cog_${ARCH_STRING}.tar.gz"
-          echo "Download URL: $DOWNLOAD_URL"
-          
-          # Download with verbose output
-          curl -L -v -o cog.tar.gz "$DOWNLOAD_URL"
+          # Download with follow redirects and show headers
+          curl -L -H "Accept: application/octet-stream" -o cog.tar.gz "$DOWNLOAD_URL" -v
           
           echo "=== Verify download ==="
           ls -la cog.tar.gz
           file cog.tar.gz
           
+          # Check if it's actually a tar.gz file
+          if file cog.tar.gz | grep -q "gzip compressed"; then
+            echo "File is a valid gzip archive"
+          else
+            echo "ERROR: Downloaded file is not a gzip archive"
+            echo "File contents (first 100 chars):"
+            head -c 100 cog.tar.gz
+            echo ""
+            exit 1
+          fi
+          
           echo "=== Extract Cog ==="
-          tar -tzf cog.tar.gz || echo "Failed to list tar contents"
-          sudo tar -xzvf cog.tar.gz -C /usr/local/bin
+          tar -xzvf cog.tar.gz -C /tmp/
+          ls -la /tmp/
+          
+          # Find and move the cog binary
+          find /tmp -name "cog" -type f -executable | head -1 | xargs -I {} sudo mv {} /usr/local/bin/cog
           
           echo "=== Set permissions ==="
           sudo chmod +x /usr/local/bin/cog
           ls -la /usr/local/bin/cog
           
           echo "=== Verify installation ==="
-          /usr/local/bin/cog --version || echo "Direct execution failed"
-          export PATH="/usr/local/bin:$PATH"
-          which cog || echo "Cog still not in PATH"
-          cog --version || echo "Cog version check failed"
+          /usr/local/bin/cog --version
+          
+      - name: Alternative installation method (if previous fails)
+        if: failure()
+        run: |
+          echo "=== Trying alternative installation via install script ==="
+          sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
+          sudo chmod +x /usr/local/bin/cog
+          cog --version || {
+            echo "=== That failed too, trying pip install ==="
+            pip install cog
+            which cog
+            cog --version
+          }
           
       - name: Debug environment after installation
         run: |
@@ -80,39 +114,20 @@ jobs:
           echo "Cog location: $(which cog || echo 'not found')"
           echo "Cog version: $(cog --version || echo 'version check failed')"
           echo "=== Docker check ==="
-          docker --version || echo "Docker not found"
-          docker info || echo "Docker info failed"
+          docker --version
+          docker info
           
-      - name: Login to Replicate with debugging
+      - name: Login to Replicate
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
           echo "=== Attempting login ==="
           echo "Token length: ${#REPLICATE_API_TOKEN}"
-          echo "Token starts with: ${REPLICATE_API_TOKEN:0:8}..."
-          echo "$REPLICATE_API_TOKEN" | cog login --token-stdin || {
-            echo "Login failed, trying alternative method"
-            cog login --token "$REPLICATE_API_TOKEN"
-          }
+          cog login --token "$REPLICATE_API_TOKEN"
           
-      - name: Validate Cog configuration
-        run: |
-          echo "=== Validate cog.yaml ==="
-          cat cog.yaml
-          echo "=== Validate predict.py ==="
-          head -20 predict.py
-          echo "=== Test Cog build (dry run) ==="
-          cog build --help || echo "Cog build help failed"
-          
-      - name: Push to Replicate with debugging
+      - name: Push to Replicate
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
           echo "=== Attempting push ==="
-          cog push r8.im/student0129/whisperx-app-from-github || {
-            echo "=== Push failed, checking logs ==="
-            echo "Docker images:"
-            docker images
-            echo "Docker processes:"
-            docker ps -a
-          }
+          cog push r8.im/student0129/whisperx-app-from-github
