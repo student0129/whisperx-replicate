@@ -106,7 +106,8 @@ jobs:
             echo "ERROR: REPLICATE_API_TOKEN is empty!"
             exit 1
           fi
-          cog login --token "$REPLICATE_API_TOKEN"
+          # Use --token-stdin flag and pipe the token
+          echo "$REPLICATE_API_TOKEN" | cog login --token-stdin
           
       - name: Validate Cog configuration
         run: |
