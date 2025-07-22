@@ -105,20 +105,7 @@ jobs:
           cat -A cog.yaml
           echo ""
           echo "=== Parse YAML with Python ==="
-          python3 -c "
-import yaml
-with open('cog.yaml', 'r') as f:
-    data = yaml.safe_load(f)
-    print('Build configuration:')
-    print(f'  GPU: {data[\"build\"][\"gpu\"]}')
-    print(f'  Python version: {data[\"build\"][\"python_version\"]}')
-    print('  Python packages:')
-    for pkg in data['build'].get('python_packages', []):
-        print(f'    - \"{pkg}\" (length: {len(pkg)}, type: {type(pkg).__name__})')
-    if 'run' in data['build']:
-        print('  Run commands:')
-        for cmd in data['build']['run']:
-            print(f'    - {cmd}')"
+          python3 -c "import yaml; data = yaml.safe_load(open('cog.yaml')); print('Build config:', data['build']); print('Python packages:'); [print(f'  - {pkg}') for pkg in data['build'].get('python_packages', [])]"
           
       - name: Validate Cog configuration
         run: |
