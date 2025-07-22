@@ -5,12 +5,7 @@ build:
   system_packages:
     - "ffmpeg"
     - "libsndfile1"
+    - "git"
   python_packages:
-    - "torch==2.1.2"
-    - "torchaudio==2.1.2"
-    - "torchvision==0.16.2"
-    - "whisperx"
-    - "pydub"
-    - "pyannote.audio==3.1.1"
-
+    - "requirements.txt"
 predict: "predict.py:Predictor"
