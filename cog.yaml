@@ -8,12 +8,6 @@ build:
   python_version: "3.10"
   system_packages:
     - ffmpeg
-  python_packages:
-    - git+https://github.com/m-bain/whisperx.git
-    - torch
-    - torchaudio
-    - numpy
-    - ffmpeg-python
-    - setuptools
+  python_requirements: requirements.txt
 
 predict: "predict.py:Predictor"
