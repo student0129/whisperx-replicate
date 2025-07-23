@@ -1,22 +1,19 @@
+# --------------------
+# File: cog.yaml
+# --------------------
+# Replicate build + prediction configuration
+
 build:
   gpu: true
-  python_version: "3.9"
+  python_version: "3.10"
   system_packages:
-    - "ffmpeg"
-    - "libsndfile1"
-    - "git"
+    - ffmpeg
   python_packages:
-    - "torch==2.1.2"
-    - "torchaudio==2.1.2"
-    - "torchvision==0.16.2"
-    - "numpy==1.24.3"
-    - "faster-whisper==1.0.0"
-    - "transformers>=4.36.0,<5.0.0"
-    - "ctranslate2==4.4.0"
-    - "huggingface-hub>=0.19.0,<1.0.0"
-  run:
-    - "pip install pyannote.audio==3.1.1"
-    - "pip install whisperx==3.1.1"
-    - "mkdir -p /src/.cache && chmod -R 777 /src/.cache"
-    - "python -c \"from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-distil-whisper-large-v2', cache_dir='/src/.cache')\""
+    - git+https://github.com/openai/whisper.git
+    - torch
+    - torchaudio
+    - numpy
+    - ffmpeg-python
+    - setuptools
+
 predict: "predict.py:Predictor"
