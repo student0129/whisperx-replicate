@@ -1,6 +1,6 @@
 git+https://github.com/m-bain/whisperx.git
-torch
-torchaudio
+torch==2.1.2
+torchaudio==2.1.2
 numpy
 ffmpeg-python
 setuptools
