@@ -12,8 +12,9 @@ import os
 class Predictor(BasePredictor):
     def setup(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.batch_size = 16  # adjust if needed
+        self.batch_size = 16
         self.compute_type = "float16" if self.device == "cuda" else "float32"
+        self.base_model = whisperx.load_model("large-v2", device=self.device, compute_type=self.compute_type)
 
     def predict(
         self,
@@ -32,8 +33,7 @@ class Predictor(BasePredictor):
         )
     ) -> Dict[str, Any]:
         # Load base model
-        model = whisperx.load_model("large-v2", device=self.device, compute_type=self.compute_type, language=original_language)
-
+        model = self.base_model
         # Transcribe
         audio_path = str(audio)
         transcription = model.transcribe(audio_path)
