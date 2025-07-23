@@ -1,131 +1,21 @@
 name: Push to Replicate
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+
 jobs:
-  push_model:
+  push:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        
-      - name: Debug environment before installation
-        run: |
-          echo "=== System Information ==="
-          echo "Runner OS: ${{ runner.os }}"
-          echo "Runner Arch: ${{ runner.arch }}"
-          uname -a
-          lsb_release -a || echo "lsb_release not available"
-          echo "Current PATH: $PATH"
-          echo "Current directory: $(pwd)"
-          echo "=== Repository files ==="
-          ls -la
-          
-      - name: Get latest Cog version and download URL
-        id: cog-info
-        run: |
-          # Fetch the latest release info from GitHub API
-          echo "=== Fetching latest release info ==="
-          curl -s https://api.github.com/repos/replicate/cog/releases/latest > latest_release.json
-          
-          # Show what we got
-          echo "=== Release info ==="
-          cat latest_release.json | jq -r '.tag_name, .name'
-          
-          # Extract version
-          LATEST_VERSION=$(cat latest_release.json | jq -r '.tag_name' | sed 's/^v//')
-          echo "Latest Cog version: $LATEST_VERSION"
-          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          
-          # List all assets
-          echo "=== Available assets ==="
-          cat latest_release.json | jq -r '.assets[].name'
-          
-          # Find the correct asset URL for Linux x86_64
-          DOWNLOAD_URL=$(cat latest_release.json | jq -r '.assets[] | select(.name | contains("Linux_x86_64")) | .browser_download_url')
-          echo "Download URL: $DOWNLOAD_URL"
-          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
-          
-      - name: Install Cog
-        run: |
-          echo "=== Downloading Cog ==="
-          DOWNLOAD_URL="${{ steps.cog-info.outputs.download_url }}"
-          
-          if [ -z "$DOWNLOAD_URL" ]; then
-            echo "ERROR: Could not find download URL"
-            echo "=== Using direct download method ==="
-            sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
-          else
-            # Download the file
-            curl -L -H "Accept: application/octet-stream" -o cog_download "$DOWNLOAD_URL"
-            
-            echo "=== Verify download ==="
-            ls -la cog_download
-            file cog_download
-            
-            # Check if it's a binary or archive
-            if file cog_download | grep -q "ELF.*executable"; then
-              echo "Downloaded file is a binary executable"
-              sudo mv cog_download /usr/local/bin/cog
-            elif file cog_download | grep -q "gzip compressed"; then
-              echo "Downloaded file is a gzip archive"
-              tar -xzvf cog_download -C /tmp/
-              find /tmp -name "cog" -type f -executable | head -1 | xargs -I {} sudo mv {} /usr/local/bin/cog
-            else
-              echo "ERROR: Unknown file type"
-              echo "Trying direct binary download..."
-              sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_Linux_x86_64"
-            fi
-          fi
-          
-          echo "=== Set permissions ==="
-          sudo chmod +x /usr/local/bin/cog
-          ls -la /usr/local/bin/cog
-          
-          echo "=== Verify installation ==="
-          /usr/local/bin/cog --version
-          
-      - name: Debug environment after installation
-        run: |
-          echo "=== Post-installation check ==="
-          echo "PATH: $PATH"
-          echo "Cog location: $(which cog || echo 'not found')"
-          echo "Cog version: $(cog --version || echo 'version check failed')"
-          echo "=== Docker check ==="
-          docker --version
-          docker info
-          
-      - name: Debug cog.yaml content
-        run: |
-          echo "=== Raw cog.yaml content ==="
-          cat cog.yaml
-          echo ""
-          echo "=== Check for hidden characters ==="
-          cat -A cog.yaml
-          echo ""
-          echo "=== Parse YAML with Python ==="
-          python3 -c "import yaml; data = yaml.safe_load(open('cog.yaml')); print('Build config:', data['build']); print('Python packages:'); [print(f'  - {pkg}') for pkg in data['build'].get('python_packages', [])]"
-          
-      - name: Validate Cog configuration
-        run: |
-          echo "=== Validate cog.yaml ==="
-          cog validate || echo "Validation failed"
-      
-      - name: Push to Replicate
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Cog
+        uses: replicate/actions/setup-cog@v1
+
+      - name: Push model to Replicate
+        run: cog push
         env:
-          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_CLI_TOKEN }}
-        run: |
-          echo "=== Attempting login ==="
-          echo "Token is set: ${REPLICATE_API_TOKEN:+yes}"
-          echo "Token length: ${#REPLICATE_API_TOKEN}"
-          if [ -z "$REPLICATE_API_TOKEN" ]; then
-            echo "ERROR: REPLICATE_API_TOKEN is empty!"
-            exit 1
-          fi
-          
-          echo "=== Logging in to Replicate ==="
-          echo "$REPLICATE_API_TOKEN" | cog login --token-stdin
-          
-          echo "=== Attempting push ==="
-          cog push r8.im/student0129/whisperx-app-from-github
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
