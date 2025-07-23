@@ -12,16 +12,17 @@ class Predictor(BasePredictor):
         self.device = "cuda"
         self.compute_type = "float16"
         hf_token = os.environ.get("HF_TOKEN")
-        
-        # CHANGED: Use the exact model name that we're downloading
-        model_name = "Systran/faster-distil-whisper-large-v2"
+
+        # Define the exact path where the model was downloaded.
+        model_path = Path("/src/.cache/models--Systran--faster-distil-whisper-large-v2")
+        # The specific snapshot folder might vary, so we find it dynamically
+        snapshot_path = next(model_path.glob("snapshots/*"))
         
         print(f"Loading WhisperX model: {model_name}...")
         self.whisper_model = whisperx.load_model(
-            model_name,  # This now matches what's in cog.yaml
+            str(snapshot_path),  # This now matches what's in cog.yaml
             self.device,
-            compute_type=self.compute_type,
-            download_root="/src/.cache"
+            compute_type=self.compute_type
         )
         
         self.align_model, self.align_metadata = whisperx.load_align_model(
