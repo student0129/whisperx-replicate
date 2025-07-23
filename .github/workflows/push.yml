@@ -16,6 +16,6 @@ jobs:
         uses: replicate/actions/setup-cog@v1
 
       - name: Push model to Replicate
-        run: cog push
+        run: cog push r8.im/student0129/whisperx-replicate-from-github
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
