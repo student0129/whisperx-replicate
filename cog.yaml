@@ -9,7 +9,7 @@ build:
   system_packages:
     - ffmpeg
   python_packages:
-    - git+https://github.com/openai/whisper.git
+    - git+https://github.com/m-bain/whisperx.git
     - torch
     - torchaudio
     - numpy
