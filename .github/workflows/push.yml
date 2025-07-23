@@ -13,8 +13,8 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Cog
-        uses: replicate/actions/setup-cog@v1
-
+        uses: replicate/setup-cog@v1
+      
       - name: Push model to Replicate
         run: cog push r8.im/student0129/whisperx-replicate-from-github
         env:
