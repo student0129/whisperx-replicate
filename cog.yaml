@@ -17,6 +17,6 @@ build:
   run:
     - "pip install pyannote.audio==3.1.1"
     - "pip install whisperx==3.1.1"
-    - "mkdir -p /src/.cache"
+    - "mkdir -p /src/.cache && chmod -R 777 /src/.cache"
     - "python -c \"from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-distil-whisper-large-v2', cache_dir='/src/.cache')\""
 predict: "predict.py:Predictor"
